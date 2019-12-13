@@ -77,10 +77,10 @@ def main():
 
 	model = GMM(opt)
 	load_checkpoint(model, opt.checkpoint)
-	model.cuda()
+	#model.cuda()
 	model.eval()
 
-	modes = ['train', 'val', 'test']
+	modes = ['alex'] #, 'val', 'train'
 	for mode in modes:
 		print('Run on {} data'.format(mode.upper()))
 		dataset = GMMDataset(opt, mode, data_list=mode+'_pairs.txt', train=False)

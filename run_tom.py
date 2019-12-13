@@ -29,57 +29,76 @@ def get_opt():
     return opt
 
 def run(opt, model, data_loader, mode):
-	if torch.cuda.is_available():
-		device = torch.device('cuda:'+str(opt.gpu_id))  
-	else:
-		device = torch.device('cpu')
-	model = model.to(device)
+    if torch.cuda.is_available():
+        device = torch.device('cuda:'+str(opt.gpu_id))  
+    else:
+        device = torch.device('cpu')
+    model = model.to(device)
 
-	tryon_dir = os.path.join(opt.data_root, mode, 'tryon-person')
-	mkdir(tryon_dir)
-	visual_dir = os.path.join(opt.out_dir, opt.name, mode)
-	mkdir(visual_dir)
+    tryon_dir = os.path.join(opt.data_root, mode, 'tryon-person')
+    mkdir(tryon_dir)
+    visual_dir = os.path.join(opt.out_dir, opt.name, mode)
+    mkdir(visual_dir)
 
-	data_iter = tqdm(data_loader, total=len(data_loader), bar_format='{l_bar}{r_bar}')
-	for _data in data_iter:
-		data = {}
-		for key, value in _data.items():
-			if not 'name' in key:
-				data[key] = value.to(device) # Load data on GPU
-			else:
-				data[key] = value
-		cloth = data['cloth']
-		cloth_mask = data['cloth_mask']
-		person = data['person']
-		cloth_name = data['cloth_name']
+    data_iter = tqdm(data_loader, total=len(data_loader), bar_format='{l_bar}{r_bar}')
+    for _data in data_iter:
+        data = {}
+        for key, value in _data.items():
+            if not 'name' in key:
+                data[key] = value.to(device) # Load data on GPU
+            else:
+                data[key] = value
+        cloth = data['cloth']
+        cloth_mask = data['cloth_mask']
+        person = data['person']
+        cloth_name = data['cloth_name']
 
-		outputs = model(torch.cat([data['feature'], cloth],1)) # (batch, channel, height, width)
-		rendered_person, composition_mask = torch.split(outputs, 3,1)
-		rendered_person = torch.tanh(rendered_person)
-		composition_mask = torch.sigmoid(composition_mask)
-		tryon_person = cloth*composition_mask + rendered_person*(1-composition_mask)
-		visuals = [[data['head'], data['shape'], data['pose']], 
-				[cloth, cloth_mask*2-1, composition_mask*2-1], 
-				[rendered_person, tryon_person, person]]
-		save_images(tryon_person, cloth_name, tryon_dir) 
-		save_visual(visuals, cloth_name, visual_dir)
+        outputs = model(torch.cat([data['feature'], cloth],1)) # (batch, channel, height, width)
+        #model used to generate output
+        
+        rendered_person, composition_mask = torch.split(outputs, 3,1)
+        
+        rendered_person = torch.tanh(rendered_person)
+        
+        composition_mask = torch.sigmoid(composition_mask)
+        
+        tryon_person = cloth*composition_mask + rendered_person*(1-composition_mask) 
+                
+        #all 9 values are -1 to 1
+        visuals = [[data['head'], data['shape'], data['pose']], 
+                [cloth, cloth_mask*2-1, composition_mask*2-1], 
+                [rendered_person, tryon_person, person]]
+        
+        #print(len(cloth_name)) #16, batch size!
+        
+        save_images(tryon_person, cloth_name, tryon_dir) 
+        save_visual(visuals, cloth_name, visual_dir)
+        
+        #break
         
 def main():
-	opt = get_opt()
-	print(opt)
+    opt = get_opt()
+    print(opt)
 
-	model = UnetGenerator(25, 4, 6, ngf=64, norm_layer=nn.InstanceNorm2d)
-	load_checkpoint(model, opt.checkpoint)
-	model.cuda()
-	model.eval()
+    model = UnetGenerator(25, 4, 6, ngf=64, norm_layer=nn.InstanceNorm2d)
+    load_checkpoint(model, opt.checkpoint)
+    #model.cuda()
+    model.eval()
 
-	mode = 'test'
-	print('Run on {} data'.format(mode.upper()))
-	dataset = TOMDataset(opt, mode, data_list=mode+'_pairs.txt', train=False)
-	dataloader = DataLoader(dataset, batch_size=opt.batch_size, num_workers=opt.n_worker, shuffle=False)   
-	with torch.no_grad():
-		run(opt, model, dataloader, mode)
-	print('Successfully completed')
+    mode = 'alex'
+    print('Run on {} data'.format(mode.upper()))
+    dataset = TOMDataset(opt, mode, data_list=mode+'_pairs.txt', train=False)
+    dataloader = DataLoader(dataset, batch_size=opt.batch_size, num_workers=opt.n_worker, shuffle=False)   
+    with torch.no_grad():
+        print("run_started")
+        run(opt, model, dataloader, mode)
+    print('Successfully completed')
 
 if __name__=='__main__':
     main()
+
+#train pairs has 11190 instead of 14221 that images are.
+#2032 in test are complete
+
+
+

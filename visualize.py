@@ -4,16 +4,22 @@ from PIL import Image
 import os
 
 def tensor_for_board(img_tensor):
-    # map into [0,1]
-    tensor = (img_tensor.clone()+1) * 0.5
-    tensor.cpu().clamp(0,1)
-
+    
+    #print (img_tensor.cpu().detach().numpy().min(),img_tensor.cpu().detach().numpy().max())
+    tensor = (img_tensor.clone()+1) * 0.5 ## map into [0,1]
+    
+    #tensor.cpu().clamp(0,1)
+    #shouldn't change anything
+    
+    #print (tensor.cpu().detach().numpy().min(),tensor.cpu().detach().numpy().max())
+    
     if tensor.size(1) == 1:
         tensor = tensor.repeat(1,3,1,1)
 
     return tensor
 
-def tensor_list_for_board(img_tensors_list):
+def tensor_list_for_board(img_tensors_list): #might be some problem with this func, returning v.light images
+ 
     grid_h = len(img_tensors_list)
     grid_w = max(len(img_tensors)  for img_tensors in img_tensors_list)
     
@@ -21,20 +27,23 @@ def tensor_list_for_board(img_tensors_list):
     canvas_h = grid_h * height
     canvas_w = grid_w * width
     canvas = torch.FloatTensor(batch_size, channel, canvas_h, canvas_w).fill_(0.5)
+    #this operation?
+    
     for i, img_tensors in enumerate(img_tensors_list):
         for j, img_tensor in enumerate(img_tensors):
             offset_h = i * height
             offset_w = j * width
             tensor = tensor_for_board(img_tensor)
             canvas[:, :, offset_h : offset_h + height, offset_w : offset_w + width].copy_(tensor)
+            #break
 
     return canvas
 
 def board_add_images(img_tensors_list, epoch, iter, save_dir):
     tensor = tensor_list_for_board(img_tensors_list)
     array = tensor_for_image(tensor[0]) # Save first image
-    Image.fromarray(array).save(os.path.join(save_dir, 'ep{:02}_iter{:03}.jpg'.format(epoch,iter)))
-
+    #Image.fromarray(array).save(os.path.join(save_dir, 'ep{:02}_iter{:03}.jpg'.format(epoch,iter)))
+    Image.fromarray(array).save(os.path.join(save_dir, 'ep{:02}_iter{:03}.jpg'.format(epoch,iter)), quality=95,subsampling=0)
 
 
 
@@ -45,12 +54,17 @@ def board_add_image(board, tag_name, img_tensor, step_count):
         board.add_image('%s/%03d' % (tag_name, i), img, step_count)
 
 
-
-
 def tensor_for_image(img_tensor):
-    tensor = img_tensor.clone() * 255
-    tensor = tensor.cpu().clamp(0,255)
-    array = tensor.detach().numpy().astype('uint8')
+    #tensor = img_tensor.clone() * 255
+    #-255 to 255
+    
+    tensor = (img_tensor.clone()+1) * 0.5 * 255 #new line 
+    
+    #tensor = tensor.cpu().clamp(0,255)
+    #why?
+    #array = tensor.detach().numpy().astype('uint8')
+    
+    array = tensor.cpu().detach().numpy().astype('uint8')
     if array.shape[0] == 1:
         array = array.squeeze(0)
     elif array.shape[0] == 3:
@@ -59,13 +73,22 @@ def tensor_for_image(img_tensor):
 
 
 def save_images(img_tensors, img_names, save_dir):
-    for img_tensor, img_name in zip(img_tensors, img_names):
-        array = tensor_for_image(img_tensor)        
-        Image.fromarray(array).save(os.path.join(save_dir, img_name))
 
+    #print(img_tensors.cpu().detach().numpy())
+    
+    for img_tensor, img_name in zip(img_tensors, img_names):
+    
+        array = tensor_for_image(img_tensor)
+        #not calling tensor_for_board so -1 se 0 values converted to 0?
+        
+        #Image.fromarray(array).save(os.path.join(save_dir, img_name))
+        Image.fromarray(array).save(os.path.join(save_dir, img_name),quality=95,subsampling=0)
+        
 def save_visual(img_tensors_list, img_names, save_dir):
     img_tensors = tensor_list_for_board(img_tensors_list)
 
     for img_tensor, img_name in zip(img_tensors, img_names):
         array = tensor_for_image(img_tensor)
-        Image.fromarray(array).save(os.path.join(save_dir, img_name))
+        Image.fromarray(array).save(os.path.join(save_dir, img_name),quality=95,subsampling=0)
+        
+        

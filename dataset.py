@@ -30,7 +30,8 @@ class DatasetBase(Dataset):
                 person_name, cloth_name = line.strip().split()
                 person_names.append(person_name)
                 cloth_names.append(cloth_name)
-
+                #break
+                
         self.person_names = person_names
         self.cloth_names = cloth_names
 
@@ -45,7 +46,10 @@ class DatasetBase(Dataset):
                 (person_parse == 2).astype(np.float32) + \
                 (person_parse == 4).astype(np.float32) + \
                 (person_parse == 13).astype(np.float32) # Hat, Hair, Sunglasses, Face
-        head = (head > 0).astype(np.float32)
+        head = (head > 0).astype(np.float32) #1.0, 0.0 
+        
+        #print(head.shape)
+        
         cloth = (person_parse == 5).astype(np.float32) + \
                 (person_parse == 6).astype(np.float32) + \
                 (person_parse == 7).astype(np.float32) # Upper-clothes, Dress, Coat
@@ -102,6 +106,8 @@ class DatasetBase(Dataset):
         shape_im = Image.fromarray((shape_mask*255).astype(np.uint8))
         feature_shape_tensor = self.transform(self._downsample(shape_im)) # [-1,1]
         head_mask_tensor = torch.from_numpy(head_mask) # [0,1]
+        
+        print(list(head_mask_tensor.size()),list(person_tensor.size()) )
         feature_head_tensor = person_tensor * head_mask_tensor - (1 - head_mask_tensor) # [-1,1], fill -1 for other parts
         cloth_mask_tensor = torch.from_numpy(cloth_mask) # [0,1]
         cloth_parse_tensor = person_tensor * cloth_mask_tensor + (1 - cloth_mask_tensor) # [-1,1], fill 1 for other parts
@@ -112,7 +118,8 @@ class DatasetBase(Dataset):
         feature_pose_tensor, pose_tensor = self._load_pose(pose_name)
         # Cloth-agnostic representation
         feature_tensor = torch.cat([feature_shape_tensor, feature_head_tensor, feature_pose_tensor], 0) 
-
+        
+        #Input/Output variables
         data = {
             'person_name': person_name,    # For visualization or ground truth
             'person': person_tensor, # For visualization or ground truth

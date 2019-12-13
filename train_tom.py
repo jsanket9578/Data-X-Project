@@ -93,7 +93,7 @@ class TOMTrainer:
                 self.optim_d.step()
                 self.step += 1
 
-            total_loss = total_loss + loss_g.item() + loss_d.item()
+            total_loss += loss_g.item() + loss_d.item()
             post_fix = {
                 'epoch': epoch,
                 'iter': i,
@@ -139,7 +139,7 @@ def main():
 
     save_dir = os.path.join(opt.out_dir, opt.name)
     log_dir = os.path.join(opt.out_dir, 'log')
-    dirs = [opt.out_dir, save_dir, os.path.join(save_dir,'train'), log_dir]
+    dirs = [opt.out_dir, save_dir, os.path.join(save_dir,'train'), log_dir]   #3rd arg is path for image output 
     for d in dirs:
         mkdir(d)
     log_name = os.path.join(log_dir, opt.name+'.csv')
@@ -149,8 +149,8 @@ def main():
     print('Building TOM model')
     gen = UnetGenerator(25, 4, 6, ngf=64, norm_layer=nn.InstanceNorm2d)
     dis = NLayerDiscriminator(28, ndf=64, n_layers=6, norm_layer=nn.InstanceNorm2d, use_sigmoid=True)
-    gen.cuda()
-    dis.cuda()
+    #gen.cuda()
+    #dis.cuda()
     n_step = int(opt.n_epoch*len(dataset_train) / opt.batch_size)
     trainer = TOMTrainer(gen, dis, dataloader_train, dataloader_val, opt.gpu_id, opt.log_freq, save_dir, n_step)
 
@@ -159,13 +159,19 @@ def main():
         print('Epoch: {}'.format(epoch))
         loss = trainer.train(epoch)
         print('Train loss: {:.3f}'.format(loss))
+        #Takes v.long just to complete 1 epoch/700 steps. total 100 epochs! 
+        #run_tom uses model of 50th epoch! 
+        
         with open(log_name, 'a') as f:
             f.write('{},{:.3f},'.format(epoch, loss))
-        save_checkpoint(gen, os.path.join(save_dir, 'gen_epoch_{:02}.pth'.format(epoch)))
+        save_checkpoint(gen, os.path.join(save_dir, 'gen_epoch_{:02}.pth'.format(epoch))) #result/TOM/ folder
         save_checkpoint(dis, os.path.join(save_dir, 'dis_epoch_{:02}.pth'.format(epoch)))
         
         loss = trainer.val(epoch)
-        print('Validation loss: {:.3f}'.format(loss))
+        
+        
+        print('Validation loss: {:.3f}'.format(loss)) #throws error here, as run_gmm not run on val? 
+        
         with open(log_name, 'a') as f:
             f.write('{:.3f}\n'.format(loss))
     print('Finish training TOM')
